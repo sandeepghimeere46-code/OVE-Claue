@@ -2796,6 +2796,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    
+    fun saveFile(filePath: String, newContent: String) {
+        val project = _state.value.activeProject ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val file = java.io.File(projectWorkspaceRoot(project), filePath)
+                file.writeText(newContent)
+                _state.update { it.copy(openedFileContent = newContent) }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
     fun openFile(entry: WorkspaceEntry) {
         if (entry.isDirectory) return
         val project = _state.value.activeProject ?: return
