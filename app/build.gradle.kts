@@ -26,7 +26,7 @@ val hasUploadSigning = listOf(
     uploadKeyPassword,
 ).all { !it.isNullOrBlank() }
 val runtimeReleaseBaseUrl =
-    "https://github.com/techexample/PocketDev/releases/download/runtime-2026.09.4"
+    "https://github.com/sandeepghimeere46-code/OVE-Claue/releases/download/runtime-2026.09.4"
 val appUpdateManifestUrl =
     "https://github.com/sandeepghimeere46-code/OVE-Claue/releases/latest/download/mobile-harness-update.json"
 val runtimeBundleDir = rootProject.layout.projectDirectory.dir("dist/runtime-bundles")
