@@ -537,29 +537,45 @@ private fun LegacySettingsScreen(
 
                 Spacer(Modifier.height(10.dp))
 
-                // API Key with eye toggle
-                OutlinedTextField(
-                    value = apiKey,
-                    onValueChange = { apiKey = it; validationStatus = null },
-                    label = { Text("API Key") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                    visualTransformation = if (keyVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    trailingIcon = {
-                        IconButton(onClick = { keyVisible = !keyVisible }) {
-                            Icon(
-                                if (keyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                contentDescription = "Toggle API Key Visibility",
-                                modifier = Modifier.size(18.dp),
-                            )
+                if (selectedKind == ProviderKind.LOCAL_LLAMA) {
+                    val isInstalled = DevStack.LOCAL_AI in state.installedDevStacks
+                    val isInstalling = state.devStackInstalling == DevStack.LOCAL_AI
+                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Local Model", fontWeight = FontWeight.Bold)
+                            Text(if (isInstalled) "Ready" else if (isInstalling) "Downloading..." else "Required (~750MB)", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                    },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = PocketOrange,
-                    ),
-                )
+                        if (!isInstalled && !isInstalling) {
+                            Button(onClick = { onInstallDevStack(DevStack.LOCAL_AI) }) {
+                                Text("Download")
+                            }
+                        }
+                    }
+                } else {
+                    // API Key with eye toggle
+                    OutlinedTextField(
+                        value = apiKey,
+                        onValueChange = { apiKey = it; validationStatus = null },
+                        label = { Text("API Key") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        visualTransformation = if (keyVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        trailingIcon = {
+                            IconButton(onClick = { keyVisible = !keyVisible }) {
+                                Icon(
+                                    if (keyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                    contentDescription = "Toggle API Key Visibility",
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            }
+                        },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = PocketOrange,
+                        ),
+                    )
+                }
 
                 // Status banner
                 AnimatedVisibility(visible = validationStatus != null) {

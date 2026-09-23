@@ -69,7 +69,7 @@ class AntigravityAuthController(
                 "TERM" to "xterm-256color",
                 "NO_COLOR" to "1",
             ),
-            listOf(RuntimeInstaller.AGY_GUEST_PATH),
+            listOf(RuntimeInstaller.AGY_GUEST_PATH, "auth", "login"),
             guestWorkspacePath = "/workspace/antigravity-auth",
             emulateHardLinks = false,
             outputFile = authOutput,
@@ -308,7 +308,7 @@ internal fun extractGoogleOAuthUrl(output: String): String? {
     // by agy, so terminate at its base64url-safe value instead of consuming TUI
     // copy such as "Copy and paste the URL".
     GOOGLE_OAUTH_URL.find(compact)?.value
-        ?.takeIf { "client_id=" in it && "code_challenge=" in it }
+        ?.takeIf { "client_id=" in it || "state=" in it || "oauth2" in it }
         ?.let { return it }
     // Fallback for post-menu screens that print the browser URL in a different
     // shape (wrapped lines, shortened query display). Only apply once the login
@@ -341,9 +341,7 @@ private fun extractSignedInEmail(output: String): String? =
 private val URL_CHARACTERS = ("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" +
     "-._~:/?#[]@!$&'()*+,;=%").toSet()
 
-private val GOOGLE_OAUTH_URL = Regex(
-    "https://accounts\\.google\\.com/[^\\s\\\"'<>]*?[?&]state=[A-Za-z0-9._~-]+",
-)
+private val GOOGLE_OAUTH_URL = Regex("https://[a-zA-Z0-9.-]+\\.google\\.com/[^\\s\\\"'<>]*")
 
 private const val TERMINAL_HANDSHAKE_REPLY = "\u001B[?2026;1\$y\u001B[?2027;1\$y\u001B[?1u\n"
 

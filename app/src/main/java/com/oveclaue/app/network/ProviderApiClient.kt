@@ -75,7 +75,7 @@ class ProviderApiClient {
         protocol: ProviderProtocol,
         discoveredModels: List<DiscoveredModel>,
     ): ConnectionValidation = withContext(Dispatchers.IO) {
-        if (baseUrl.isBlank() || model.isBlank() || apiKey.isBlank()) {
+        if (baseUrl.isBlank() || model.isBlank() (apiKey.isBlank() && !baseUrl.contains("127.0.0.1"))) {
             return@withContext ConnectionValidation.Failure("Base URL, model, and API key are required.")
         }
         val endpoint = messagesEndpoint(baseUrl, protocol)

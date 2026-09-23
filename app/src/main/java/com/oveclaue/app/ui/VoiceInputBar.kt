@@ -35,8 +35,24 @@ fun VoiceInputBar(
     onCancel: () -> Unit
 ) {
     val context = LocalContext.current
+    var accumulatedText by remember { mutableStateOf("") }
     var recognizedText by remember { mutableStateOf("Listening...") }
     var isListening by remember { mutableStateOf(false) }
+    var shouldStop by remember { mutableStateOf(false) }
+
+    val startListening = {
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+            // Request longer listening times if supported
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 10000L)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 10000L)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 10000L)
+        }
+        speechRecognizer.startListening(intent)
+        isListening = true
+        recognizedText = "Listening..."
+    }
 
     val speechRecognizer = remember {
         SpeechRecognizer.createSpeechRecognizer(context).apply {
@@ -47,32 +63,37 @@ fun VoiceInputBar(
                 override fun onBufferReceived(buffer: ByteArray?) {}
                 override fun onEndOfSpeech() {}
                 override fun onError(error: Int) {
+                    if (error == SpeechRecognizer.ERROR_NO_MATCH || error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
+                        if (!shouldStop) startListening()
+                        return
+                    }
                     recognizedText = "Error listening. Tap cancel."
                     isListening = false
                 }
                 override fun onResults(results: Bundle?) {
                     val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                     if (!matches.isNullOrEmpty()) {
-                        recognizedText = matches[0]
+                        val newText = matches[0]
+                        if (accumulatedText.isNotBlank()) accumulatedText += " " + newText else accumulatedText = newText
+                        recognizedText = accumulatedText
                     }
-                    isListening = false
+                    if (!shouldStop) {
+                        startListening()
+                    } else {
+                        isListening = false
+                    }
                 }
                 override fun onPartialResults(results: Bundle?) {
                     val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                     if (!matches.isNullOrEmpty()) {
-                        recognizedText = matches[0]
+                        val currentPartial = matches[0]
+                        recognizedText = if (accumulatedText.isNotBlank()) accumulatedText + " " + currentPartial else currentPartial
                     }
                 }
                 override fun onEvent(eventType: Int, params: Bundle?) {}
             })
         }
     }
-
-    val startListening = {
-        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-        }
         speechRecognizer.startListening(intent)
         isListening = true
         recognizedText = "Listening..."
@@ -109,6 +130,7 @@ fun VoiceInputBar(
             // Cancel Button
             IconButton(
                 onClick = {
+                    shouldStop = true
                     speechRecognizer.stopListening()
                     onCancel()
                 },
@@ -134,6 +156,7 @@ fun VoiceInputBar(
             // Stop to Textbox
             IconButton(
                 onClick = {
+                    shouldStop = true
                     speechRecognizer.stopListening()
                     val textToReturn = if (recognizedText == "Listening..." || recognizedText.startsWith("Error")) "" else recognizedText
                     onStopToText(textToReturn)

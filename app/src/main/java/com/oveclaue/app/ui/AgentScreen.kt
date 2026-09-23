@@ -173,6 +173,8 @@ fun AgentScreen(
     onRefreshAntigravityModels: () -> Unit = {},
     onSetAntigravityModel: (String) -> Unit = {},
     onSetAntigravityEffort: (String) -> Unit = {},
+    onInstallDevStack: (com.oveclaue.app.model.DevStack) -> Unit = {},
+    onSettings: () -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
     var selectedKind by rememberSaveable(state.provider.kind) { mutableStateOf(state.provider.kind) }
@@ -720,8 +722,21 @@ fun AgentScreen(
 
     Scaffold(
         topBar = {
+            var topMenuExpanded by remember { mutableStateOf(false) }
             TopAppBar(
                 modifier = Modifier.padding(top = 4.dp),
+                actions = {
+                    androidx.compose.foundation.layout.Box {
+                        androidx.compose.material3.IconButton(onClick = { topMenuExpanded = true }) { androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Default.MoreVert, "More Options") }
+                        androidx.compose.material3.DropdownMenu(expanded = topMenuExpanded, onDismissRequest = { topMenuExpanded = false }) {
+                            androidx.compose.material3.DropdownMenuItem(
+                                text = { androidx.compose.material3.Text("Settings") },
+                                onClick = { topMenuExpanded = false; onSettings() },
+                                leadingIcon = { androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Default.Settings, null, modifier = Modifier.size(20.dp)) }
+                            )
+                        }
+                    }
+                },
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Surface(
@@ -1645,138 +1660,156 @@ private fun AgentProviderCard(
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
 
-            PremiumSummaryRow(
-                icon = Icons.Default.Key,
-                title = if (selectedKind == ProviderKind.CLAUDE) "Subscription token" else "Credentials",
-                subtitle = buildString {
-                    append(activeKey?.name ?: if (selectedKind == ProviderKind.CLAUDE) "No subscription token saved" else "No API key saved")
-                    if (activeKey != null) append(" · Active")
-                    activeKeyStatus?.let {
-                        append(" · ")
-                        append(when (it.successful) { true -> "Verified"; false -> it.label; null -> "Checking" })
-                    }
-                },
-                positive = activeKeyStatus?.successful == true,
-                error = activeKeyStatus?.successful == false,
-                expanded = keysExpanded,
-                onClick = { keysExpanded = !keysExpanded },
-            )
-
-            activeKeyStatus?.let { keyStatus ->
-                if (!keysExpanded) {
-                    Text(
-                        keyStatus.message,
-                        fontSize = 10.sp,
-                        lineHeight = 14.sp,
-                        color = when (keyStatus.successful) {
-                            true -> Color(0xFF2E9D72)
-                            false -> MaterialTheme.colorScheme.error
-                            null -> MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                        modifier = Modifier.padding(start = 48.dp, end = 8.dp, bottom = 8.dp),
-                    )
-                    keyStatus.providerMessage?.let { providerMessage ->
+            if (selectedKind == ProviderKind.LOCAL_LLAMA) {
+                val isInstalled = com.oveclaue.app.model.DevStack.LOCAL_AI in state.installedDevStacks
+                val isInstalling = state.devStackInstalling == com.oveclaue.app.model.DevStack.LOCAL_AI
+                PremiumSummaryRow(
+                    icon = Icons.Default.Download,
+                    title = "Local Engine",
+                    subtitle = if (isInstalled) "Installed and ready" else if (isInstalling) "Downloading..." else "Requires ~750MB download",
+                    positive = isInstalled,
+                    error = false,
+                    expanded = false,
+                    onClick = {
+                        if (!isInstalled && !isInstalling) {
+                            onInstallDevStack(com.oveclaue.app.model.DevStack.LOCAL_AI)
+                        }
+                    },
+                )
+            } else {
+                PremiumSummaryRow(
+                    icon = Icons.Default.Key,
+                    title = if (selectedKind == ProviderKind.CLAUDE) "Subscription token" else "Credentials",
+                    subtitle = buildString {
+                        append(activeKey?.name ?: if (selectedKind == ProviderKind.CLAUDE) "No subscription token saved" else "No API key saved")
+                        if (activeKey != null) append(" · Active")
+                        activeKeyStatus?.let {
+                            append(" · ")
+                            append(when (it.successful) { true -> "Verified"; false -> it.label; null -> "Checking" })
+                        }
+                    },
+                    positive = activeKeyStatus?.successful == true,
+                    error = activeKeyStatus?.successful == false,
+                    expanded = keysExpanded,
+                    onClick = { keysExpanded = !keysExpanded },
+                )
+    
+                activeKeyStatus?.let { keyStatus ->
+                    if (!keysExpanded) {
                         Text(
-                            "Provider: $providerMessage",
+                            keyStatus.message,
                             fontSize = 10.sp,
                             lineHeight = 14.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = when (keyStatus.successful) {
+                                true -> Color(0xFF2E9D72)
+                                false -> MaterialTheme.colorScheme.error
+                                null -> MaterialTheme.colorScheme.onSurfaceVariant
+                            },
                             modifier = Modifier.padding(start = 48.dp, end = 8.dp, bottom = 8.dp),
                         )
+                        keyStatus.providerMessage?.let { providerMessage ->
+                            Text(
+                                "Provider: $providerMessage",
+                                fontSize = 10.sp,
+                                lineHeight = 14.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(start = 48.dp, end = 8.dp, bottom = 8.dp),
+                            )
+                        }
                     }
                 }
-            }
-
-            AnimatedVisibility(keysExpanded) {
-                Column(
-                    modifier = Modifier.padding(top = 10.dp, bottom = 4.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text(if (selectedKind == ProviderKind.CLAUDE) "Saved tokens (${savedKeys.size})" else "Saved keys (${savedKeys.size})", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-                        Text(
-                            if (addKeyExpanded) "Cancel" else "+ Add key",
-                            fontSize = 11.sp,
-                            color = PocketOrange,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.clickable { addKeyExpanded = !addKeyExpanded }.padding(6.dp),
-                        )
-                    }
-                    savedKeys.forEach { key ->
-                        val keyStatus = keyConnectionStatuses[key.id]
-                        Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)) {
-                            Column {
-                                Row(
-                                    Modifier.fillMaxWidth().clickable { onActivateKey(key.id) }.padding(start = 12.dp, top = 7.dp, bottom = 7.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    Column(Modifier.weight(1f)) {
-                                        Text(key.name, fontWeight = FontWeight.Medium, fontSize = 13.sp)
-                                        Text(if (key.isActive) "Active" else "Tap to activate", fontSize = 10.sp, color = if (key.isActive) PocketOrange else MaterialTheme.colorScheme.onSurfaceVariant)
-                                    }
-                                    AgentSelectionDot(key.isActive)
-                                    IconButton(onClick = { onRemoveKey(key.id) }) {
-                                        Icon(Icons.Default.DeleteSweep, "Remove", Modifier.size(17.dp))
-                                    }
-                                }
-                                keyStatus?.let {
-                                    Row(Modifier.padding(start = 12.dp, end = 12.dp, bottom = 9.dp), verticalAlignment = Alignment.CenterVertically) {
-                                        if (it.successful == null) CircularProgressIndicator(Modifier.size(13.dp), strokeWidth = 1.5.dp)
-                                        else Icon(if (it.successful) Icons.Default.CheckCircle else Icons.Default.Warning, null, tint = if (it.successful) Color(0xFF2E9D72) else MaterialTheme.colorScheme.error, modifier = Modifier.size(14.dp))
-                                        Spacer(Modifier.width(7.dp))
+    
+                AnimatedVisibility(keysExpanded) {
+                    Column(
+                        modifier = Modifier.padding(top = 10.dp, bottom = 4.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text(if (selectedKind == ProviderKind.CLAUDE) "Saved tokens (${savedKeys.size})" else "Saved keys (${savedKeys.size})", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                            Text(
+                                if (addKeyExpanded) "Cancel" else "+ Add key",
+                                fontSize = 11.sp,
+                                color = PocketOrange,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.clickable { addKeyExpanded = !addKeyExpanded }.padding(6.dp),
+                            )
+                        }
+                        savedKeys.forEach { key ->
+                            val keyStatus = keyConnectionStatuses[key.id]
+                            Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)) {
+                                Column {
+                                    Row(
+                                        Modifier.fillMaxWidth().clickable { onActivateKey(key.id) }.padding(start = 12.dp, top = 7.dp, bottom = 7.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
                                         Column(Modifier.weight(1f)) {
-                                            Text(it.message, fontSize = 10.sp, lineHeight = 14.sp, color = if (it.successful == false) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
-                                            it.providerMessage?.let { providerMessage ->
-                                                Text("Provider: $providerMessage", fontSize = 10.sp, lineHeight = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            Text(key.name, fontWeight = FontWeight.Medium, fontSize = 13.sp)
+                                            Text(if (key.isActive) "Active" else "Tap to activate", fontSize = 10.sp, color = if (key.isActive) PocketOrange else MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                        AgentSelectionDot(key.isActive)
+                                        IconButton(onClick = { onRemoveKey(key.id) }) {
+                                            Icon(Icons.Default.DeleteSweep, "Remove", Modifier.size(17.dp))
+                                        }
+                                    }
+                                    keyStatus?.let {
+                                        Row(Modifier.padding(start = 12.dp, end = 12.dp, bottom = 9.dp), verticalAlignment = Alignment.CenterVertically) {
+                                            if (it.successful == null) CircularProgressIndicator(Modifier.size(13.dp), strokeWidth = 1.5.dp)
+                                            else Icon(if (it.successful) Icons.Default.CheckCircle else Icons.Default.Warning, null, tint = if (it.successful) Color(0xFF2E9D72) else MaterialTheme.colorScheme.error, modifier = Modifier.size(14.dp))
+                                            Spacer(Modifier.width(7.dp))
+                                            Column(Modifier.weight(1f)) {
+                                                Text(it.message, fontSize = 10.sp, lineHeight = 14.sp, color = if (it.successful == false) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
+                                                it.providerMessage?.let { providerMessage ->
+                                                    Text("Provider: $providerMessage", fontSize = 10.sp, lineHeight = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                                }
                                             }
                                         }
                                     }
                                 }
                             }
                         }
-                    }
-
-                    AnimatedVisibility(addKeyExpanded) {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedTextField(
-                                value = newKeyName,
-                                onValueChange = { input ->
-                                    if ((input.startsWith("sk-") || input.startsWith("ant-") || input.length > 30) && !input.contains(" ") && newApiKey.isBlank()) {
-                                        onNewApiKey(input.trim())
-                                        onNewKeyName("${selectedKind.title} Key")
-                                    } else onNewKeyName(input)
-                                },
-                                label = { Text(if (selectedKind == ProviderKind.CLAUDE) "Token name" else "Key name") },
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(12.dp),
-                            )
-                            OutlinedTextField(
-                                value = newApiKey,
-                                onValueChange = onNewApiKey,
-                                label = { Text(if (selectedKind == ProviderKind.CLAUDE) "Claude setup token" else "API key") },
-                                singleLine = true,
-                                visualTransformation = if (newKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                                trailingIcon = { IconButton(onClick = onToggleNewKey) { Icon(if (newKeyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility, "Toggle visibility") } },
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(12.dp),
-                            )
-                            Button(
-                                onClick = { onAddKey(); addKeyExpanded = false },
-                                enabled = newKeyName.isNotBlank() && newApiKey.isNotBlank(),
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(12.dp),
-                            ) { Text(if (selectedKind == ProviderKind.CLAUDE) "Save token" else "Save API key") }
+    
+                        AnimatedVisibility(addKeyExpanded) {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedTextField(
+                                    value = newKeyName,
+                                    onValueChange = { input ->
+                                        if ((input.startsWith("sk-") || input.startsWith("ant-") || input.length > 30) && !input.contains(" ") && newApiKey.isBlank()) {
+                                            onNewApiKey(input.trim())
+                                            onNewKeyName("${selectedKind.title} Key")
+                                        } else onNewKeyName(input)
+                                    },
+                                    label = { Text(if (selectedKind == ProviderKind.CLAUDE) "Token name" else "Key name") },
+                                    singleLine = true,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(12.dp),
+                                )
+                                OutlinedTextField(
+                                    value = newApiKey,
+                                    onValueChange = onNewApiKey,
+                                    label = { Text(if (selectedKind == ProviderKind.CLAUDE) "Claude setup token" else "API key") },
+                                    singleLine = true,
+                                    visualTransformation = if (newKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                                    trailingIcon = { IconButton(onClick = onToggleNewKey) { Icon(if (newKeyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility, "Toggle visibility") } },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(12.dp),
+                                )
+                                Button(
+                                    onClick = { onAddKey(); addKeyExpanded = false },
+                                    enabled = newKeyName.isNotBlank() && newApiKey.isNotBlank(),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(12.dp),
+                                ) { Text(if (selectedKind == ProviderKind.CLAUDE) "Save token" else "Save API key") }
+                            }
                         }
                     }
                 }
+    
             }
-
             Spacer(Modifier.height(12.dp))
             OutlinedButton(
                 onClick = onValidate,
-                enabled = apiKey.isNotBlank() && !isDiscovering && !isValidating &&
+                enabled = (apiKey.isNotBlank() || selectedKind == ProviderKind.LOCAL_LLAMA) && !isDiscovering && !isValidating &&
                     (selectedKind == ProviderKind.CLAUDE || (baseUrl.isNotBlank() && model.isNotBlank())),
                 modifier = Modifier.fillMaxWidth().height(46.dp),
                 shape = RoundedCornerShape(13.dp),

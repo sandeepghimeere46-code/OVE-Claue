@@ -2048,7 +2048,7 @@ private fun RootScreenHost(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
             if (!keyboardVisible) NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
-                RootScreen.entries.forEach { tab ->
+                RootScreen.entries.filter { it != RootScreen.SETTINGS }.forEach { tab ->
                     NavigationBarItem(
                         selected = screen == tab,
                         onClick = { screen = tab },
@@ -2118,6 +2118,8 @@ private fun RootScreenHost(
                     onSubmitAntigravityCode = viewModel::submitAntigravityCode,
                     onLogoutAntigravity = viewModel::logoutAntigravity,
                     onRefreshAntigravityModels = viewModel::refreshAntigravityModels,
+                    onInstallDevStack = viewModel::installDevStack,
+                    onSettings = { screen = RootScreen.SETTINGS },
                     onSetAntigravityModel = viewModel::setAntigravityModel,
                     onSetAntigravityEffort = viewModel::setAntigravityEffort,
                 )
@@ -2137,6 +2139,7 @@ private fun RootScreenHost(
                     onActivateApiKey = viewModel::activateApiKey,
                     onRemoveApiKey = viewModel::removeApiKey,
                     onInstallDevStack = viewModel::installDevStack,
+                    onSettings = { screen = RootScreen.SETTINGS },
                     onRemoveDevStack = viewModel::removeDevStack,
                     onInstallAgent = viewModel::installAgent,
                     onCheckAgentUpdates = viewModel::checkAgentUpdates,
@@ -2145,6 +2148,8 @@ private fun RootScreenHost(
                     onSubmitAntigravityCode = viewModel::submitAntigravityCode,
                     onLogoutAntigravity = viewModel::logoutAntigravity,
                     onRefreshAntigravityModels = viewModel::refreshAntigravityModels,
+                    onInstallDevStack = viewModel::installDevStack,
+                    onSettings = { screen = RootScreen.SETTINGS },
                     onSetAntigravityModel = viewModel::setAntigravityModel,
                     onSetAntigravityEffort = viewModel::setAntigravityEffort,
                     initialDebugUpdateManifestUrl = viewModel.debugUpdateManifestUrl(),
@@ -3110,9 +3115,22 @@ private fun ProjectsScreen(
     }
     Scaffold(
         topBar = {
+            var topMenuExpanded by remember { mutableStateOf(false) }
             TopAppBar(
                 modifier = Modifier.padding(top = 8.dp),
                 title = { Row(verticalAlignment = Alignment.CenterVertically) { BrandMark(compact = true); Spacer(Modifier.width(9.dp)); Text("OVE Claue", fontWeight = FontWeight.Bold) } },
+                actions = {
+                    Box {
+                        IconButton(onClick = { topMenuExpanded = true }) { Icon(Icons.Default.MoreVert, "More Options") }
+                        DropdownMenu(expanded = topMenuExpanded, onDismissRequest = { topMenuExpanded = false }) {
+                            DropdownMenuItem(
+                                text = { Text("Settings") },
+                                onClick = { topMenuExpanded = false; onSettings() },
+                                leadingIcon = { Icon(Icons.Default.Settings, null, modifier = Modifier.size(20.dp)) }
+                            )
+                        }
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
             )
         },
@@ -4709,6 +4727,19 @@ private fun ChatTab(
                                 contentDescription = "Start voice recording",
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                        }
+
+                        if (!isRunning && messages.isNotEmpty()) {
+                            IconButton(
+                                onClick = { onSend("Continue task.") },
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(
+                                    imageVector = androidx.compose.material.icons.Icons.Default.PlayArrow,
+                                    contentDescription = "Continue task",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
                         }
 
                         Spacer(Modifier.width(4.dp))
