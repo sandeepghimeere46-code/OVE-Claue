@@ -40,11 +40,12 @@ fun VoiceInputBar(
     var isListening by remember { mutableStateOf(false) }
     var shouldStop by remember { mutableStateOf(false) }
 
-    val startListening = {
+    val speechRecognizer = remember { SpeechRecognizer.createSpeechRecognizer(context) }
+
+    val startListening: () -> Unit = {
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-            // Request longer listening times if supported
             putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 10000L)
             putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 10000L)
             putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 10000L)
@@ -54,49 +55,46 @@ fun VoiceInputBar(
         recognizedText = "Listening..."
     }
 
-    val speechRecognizer = remember {
-        SpeechRecognizer.createSpeechRecognizer(context).apply {
-            setRecognitionListener(object : RecognitionListener {
-                override fun onReadyForSpeech(params: Bundle?) {}
-                override fun onBeginningOfSpeech() { recognizedText = "Listening..." }
-                override fun onRmsChanged(rmsdB: Float) {}
-                override fun onBufferReceived(buffer: ByteArray?) {}
-                override fun onEndOfSpeech() {}
-                override fun onError(error: Int) {
-                    if (error == SpeechRecognizer.ERROR_NO_MATCH || error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
-                        if (!shouldStop) startListening()
-                        return
-                    }
-                    recognizedText = "Error listening. Tap cancel."
+    DisposableEffect(Unit) {
+        speechRecognizer.setRecognitionListener(object : RecognitionListener {
+            override fun onReadyForSpeech(params: Bundle?) {}
+            override fun onBeginningOfSpeech() { recognizedText = "Listening..." }
+            override fun onRmsChanged(rmsdB: Float) {}
+            override fun onBufferReceived(buffer: ByteArray?) {}
+            override fun onEndOfSpeech() {}
+            override fun onError(error: Int) {
+                if (error == SpeechRecognizer.ERROR_NO_MATCH || error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
+                    if (!shouldStop) startListening()
+                    return
+                }
+                recognizedText = "Error listening. Tap cancel."
+                isListening = false
+            }
+            override fun onResults(results: Bundle?) {
+                val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                if (!matches.isNullOrEmpty()) {
+                    val newText = matches[0]
+                    if (accumulatedText.isNotBlank()) accumulatedText += " " + newText else accumulatedText = newText
+                    recognizedText = accumulatedText
+                }
+                if (!shouldStop) {
+                    startListening()
+                } else {
                     isListening = false
                 }
-                override fun onResults(results: Bundle?) {
-                    val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                    if (!matches.isNullOrEmpty()) {
-                        val newText = matches[0]
-                        if (accumulatedText.isNotBlank()) accumulatedText += " " + newText else accumulatedText = newText
-                        recognizedText = accumulatedText
-                    }
-                    if (!shouldStop) {
-                        startListening()
-                    } else {
-                        isListening = false
-                    }
+            }
+            override fun onPartialResults(results: Bundle?) {
+                val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                if (!matches.isNullOrEmpty()) {
+                    val currentPartial = matches[0]
+                    recognizedText = if (accumulatedText.isNotBlank()) accumulatedText + " " + currentPartial else currentPartial
                 }
-                override fun onPartialResults(results: Bundle?) {
-                    val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                    if (!matches.isNullOrEmpty()) {
-                        val currentPartial = matches[0]
-                        recognizedText = if (accumulatedText.isNotBlank()) accumulatedText + " " + currentPartial else currentPartial
-                    }
-                }
-                override fun onEvent(eventType: Int, params: Bundle?) {}
-            })
+            }
+            override fun onEvent(eventType: Int, params: Bundle?) {}
+        })
+        onDispose {
+            speechRecognizer.destroy()
         }
-    }
-        speechRecognizer.startListening(intent)
-        isListening = true
-        recognizedText = "Listening..."
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(

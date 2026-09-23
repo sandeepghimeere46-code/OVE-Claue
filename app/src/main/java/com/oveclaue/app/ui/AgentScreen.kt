@@ -1,5 +1,7 @@
 package com.oveclaue.app.ui
 
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -725,18 +727,6 @@ fun AgentScreen(
             var topMenuExpanded by remember { mutableStateOf(false) }
             TopAppBar(
                 modifier = Modifier.padding(top = 4.dp),
-                actions = {
-                    androidx.compose.foundation.layout.Box {
-                        androidx.compose.material3.IconButton(onClick = { topMenuExpanded = true }) { androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Default.MoreVert, "More Options") }
-                        androidx.compose.material3.DropdownMenu(expanded = topMenuExpanded, onDismissRequest = { topMenuExpanded = false }) {
-                            androidx.compose.material3.DropdownMenuItem(
-                                text = { androidx.compose.material3.Text("Settings") },
-                                onClick = { topMenuExpanded = false; onSettings() },
-                                leadingIcon = { androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Default.Settings, null, modifier = Modifier.size(20.dp)) }
-                            )
-                        }
-                    }
-                },
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Surface(
@@ -773,6 +763,17 @@ fun AgentScreen(
                 },
                 actions = {
                     // Top Bar Live Status Pill
+                    androidx.compose.foundation.layout.Box {
+                        androidx.compose.material3.IconButton(onClick = { topMenuExpanded = true }) { androidx.compose.material3.Icon(Icons.Default.MoreVert, "More Options") }
+                        androidx.compose.material3.DropdownMenu(expanded = topMenuExpanded, onDismissRequest = { topMenuExpanded = false }) {
+                            androidx.compose.material3.DropdownMenuItem(
+                                text = { androidx.compose.material3.Text("Settings") },
+                                onClick = { topMenuExpanded = false; onSettings() },
+                                leadingIcon = { androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Default.Settings, null, modifier = Modifier.size(20.dp)) }
+                            )
+                        }
+                    }
+
                     Surface(
                         color = pillBg,
                         shape = RoundedCornerShape(50),
@@ -972,6 +973,7 @@ fun AgentScreen(
                     AgentProviderCard(
                         state = state,
                         selectedKind = selectedKind,
+                        onInstallDevStack = onInstallDevStack,
                         baseUrl = baseUrl,
                         model = model,
                         dshApi = dshApi,
@@ -1454,6 +1456,7 @@ private fun AgentAntigravityCard(
 private fun AgentProviderCard(
     state: AppUiState,
     selectedKind: ProviderKind,
+    onInstallDevStack: (com.oveclaue.app.model.DevStack) -> Unit,
     baseUrl: String,
     model: String,
     dshApi: String,
@@ -1664,7 +1667,7 @@ private fun AgentProviderCard(
                 val isInstalled = com.oveclaue.app.model.DevStack.LOCAL_AI in state.installedDevStacks
                 val isInstalling = state.devStackInstalling == com.oveclaue.app.model.DevStack.LOCAL_AI
                 PremiumSummaryRow(
-                    icon = Icons.Default.Download,
+                    icon = Icons.Default.Settings,
                     title = "Local Engine",
                     subtitle = if (isInstalled) "Installed and ready" else if (isInstalling) "Downloading..." else "Requires ~750MB download",
                     positive = isInstalled,
