@@ -69,7 +69,7 @@ class AntigravityAuthController(
                 "TERM" to "xterm-256color",
                 "NO_COLOR" to "1",
             ),
-            listOf(RuntimeInstaller.AGY_GUEST_PATH, "auth", "login"),
+            listOf(RuntimeInstaller.AGY_GUEST_PATH),
             guestWorkspacePath = "/workspace/antigravity-auth",
             emulateHardLinks = false,
             outputFile = authOutput,

@@ -2067,7 +2067,7 @@ private fun RootScreenHost(
             if (screen == RootScreen.PROJECTS && !keyboardVisible && !showQuickTerminal) {
                 ExtendedFloatingActionButton(
                     onClick = { showQuickTerminal = true },
-                    icon = { Icon(Icons.Default.Terminal, contentDescription = null) },
+                    icon = { Icon(Icons.Default.Terminal, contentDescription = "Open terminal") },
                     text = { Text("Terminal", fontWeight = FontWeight.SemiBold) },
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary,
